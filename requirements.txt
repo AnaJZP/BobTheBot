@@ -1,0 +1,6 @@
+python-telegram-bot
+yfinance
+matplotlib
+pandas
+numpy
+pandas_ta==0.3.14b0

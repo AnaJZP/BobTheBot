@@ -1,0 +1,63 @@
+# Entornos Virtuales
+.venv/
+venv/
+ENV/
+env/
+*.env
+
+# Archivos de configuración sensibles
+config.py
+
+# Archivos compilados de Python y cachés
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de base de datos SQLite (si usaras alguna)
+*.sqlite3
+*.db
+
+# Logs y archivos de datos generados (si no quieres versionarlos)
+*.log
+*.csv # Si no quieres que el archivo de logs de consultas (consultas_bot.csv) se suba al repo
+      # Si SÍ quieres versionar el CSV de logs, comenta o elimina esta línea.
+
+# Archivos de IDEs y editores
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sublime-workspace
+
+# Paquetes de distribución/construcción de Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Instalador de Python (si se descarga accidentalmente)
+*.manifest
+*.spec
+
+# Archivos de Jupyter Notebook (si los usas y no quieres checkpoints)
+.ipynb_checkpoints
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db

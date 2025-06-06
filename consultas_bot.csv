@@ -1,0 +1,14 @@
+timestamp,user_id,user_name,ticker,query_text,recommendation,justification
+2025-06-05 18:19:32,12345,test_user,AAPL,¿Compro AAPL?,Compra,PSAR cruzó hacia arriba.
+2025-06-05 18:19:32,67890,another_user,GOOG,Opinión GOOG,Mantener,Indicadores neutrales.
+2025-06-05 18:23:53,1271012576,Ana,TSLA,/analizar TSLA,Mantener,Señales mixtas o neutrales. PSAR: Mantener (El precio y el Parabolic SAR están muy juntos o no hay señal clara.). Estocástico: Mantener (Indicador en zona de sobreventa (<20))
+2025-06-05 18:24:18,1271012576,Ana,GOOG,¿Qué opinas de GOOG?,Mantener (Posición Larga),"PSAR: Precio (169.81), PSAR (166.68). El precio se mantiene por encima del Parabolic SAR (tendencia alcista). (Estocástico en Mantener)"
+2025-06-05 18:24:32,1271012576,Ana,PORFA,Analiza AMZN porfa,Error,No se pudieron obtener datos
+2025-06-05 18:24:43,1271012576,Ana,AMZN,Analiza AMZN,Mantener (Posición Larga),"PSAR: Precio (207.91), PSAR (198.29). El precio se mantiene por encima del Parabolic SAR (tendencia alcista). (Estocástico en Mantener)"
+2025-06-05 18:24:53,1271012576,Ana,FUTBOL,Me gusta el futbol,Error,No se pudieron obtener datos
+2025-06-05 18:25:11,1271012576,Ana,MX,Comprar o vender BIMBOA.MX,Mantener,Señales mixtas o neutrales. PSAR: Mantener (El precio y el Parabolic SAR están muy juntos o no hay señal clara.). Estocástico: Mantener (Indicador en zona neutral.)
+2025-06-05 18:25:23,1271012576,Ana,BIMBO,Comprar o vender Bimbo,Error,No se pudieron obtener datos
+2025-06-05 18:45:18,1271012576,Ana,AMZN,amzn,Mantener (Posición Larga),"PSAR: Precio (207.91), PSAR (198.29). El precio se mantiene por encima del Parabolic SAR (tendencia alcista). (Estocástico en Mantener)"
+2025-06-05 22:50:41,1271012576,Ana,NFLX,NFLX,Mantener,Señales mixtas o neutrales. PSAR: Mantener (Posición Larga) (El precio se mantiene por encima del Parabolic SAR (tendencia alcista).). Estocástico: Venta (%K cruzó por debajo de %D en la zona de sobrecompra (>80).)
+2025-06-05 22:51:52,1271012576,Ana,NVDA,dime si compro NVDA,Mantener (Posición Larga),"PSAR: Precio (139.99), PSAR (132.92). El precio se mantiene por encima del Parabolic SAR (tendencia alcista). (Estocástico en Mantener)"
+2025-06-05 22:54:40,1271012576,Ana,INTC,Compro o vendo INTC,Mantener,Señales mixtas o neutrales. PSAR: Mantener (El precio y el Parabolic SAR están muy juntos o no hay señal clara.). Estocástico: Mantener (Indicador en zona neutral.)
