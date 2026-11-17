@@ -1,6 +1,6 @@
-python-telegram-bot
-yfinance
-matplotlib
-pandas
-numpy
-pandas_ta==0.3.14b0
+python-telegram-bot>=21.0,<23
+yfinance>=0.2.50
+pandas>=2.0
+numpy>=1.26
+matplotlib>=3.8
+python-dotenv>=1.0

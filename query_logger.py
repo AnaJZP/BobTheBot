@@ -1,27 +1,30 @@
+"""Registro de consultas en CSV (logs/consultas_bot.csv, ignorado por Git).
+
+El archivo contiene IDs y nombres de usuarios de Telegram: trátalo como dato
+personal y no lo publiques en el repositorio.
+"""
 import csv
-import os
+import logging
 from datetime import datetime
+from pathlib import Path
 
-LOG_FILE = 'consultas_bot.csv'
-LOG_HEADER = ['timestamp', 'user_id', 'user_name', 'ticker', 'query_text', 'recommendation', 'justification']
+from config import LOG_FILE
 
-def log_query(user_id: int, user_name: str, ticker: str, query_text: str, recommendation: str, justification: str):
-    """Registra una consulta en el archivo CSV."""
-    file_exists = os.path.isfile(LOG_FILE)
-    
+log = logging.getLogger(__name__)
+ENCABEZADO = ["timestamp", "user_id", "user_name", "ticker", "query_text",
+              "recommendation", "justification"]
+
+
+def log_query(user_id: int, user_name: str, ticker: str, query_text: str,
+              recommendation: str, justification: str, archivo: Path = LOG_FILE) -> None:
     try:
-        with open(LOG_FILE, 'a', newline='', encoding='utf-8') as csvfile:
-            writer = csv.writer(csvfile)
-            if not file_exists or os.path.getsize(LOG_FILE) == 0: # Escribir encabezado si el archivo es nuevo o vacío
-                writer.writerow(LOG_HEADER)
-            
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            writer.writerow([timestamp, user_id, user_name, ticker, query_text, recommendation, justification])
-    except Exception as e:
-        print(f"Error al escribir en el log: {e}")
-
-if __name__ == '__main__':
-    # Prueba de log
-    log_query(12345, "test_user", "AAPL", "¿Compro AAPL?", "Compra", "PSAR cruzó hacia arriba.")
-    log_query(67890, "another_user", "GOOG", "Opinión GOOG", "Mantener", "Indicadores neutrales.")
-    print(f"Consultas de prueba registradas en {LOG_FILE}")
+        archivo.parent.mkdir(parents=True, exist_ok=True)
+        nuevo = not archivo.exists() or archivo.stat().st_size == 0
+        with open(archivo, "a", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            if nuevo:
+                w.writerow(ENCABEZADO)
+            w.writerow([datetime.now().isoformat(timespec="seconds"), user_id, user_name,
+                        ticker, query_text, recommendation, justification])
+    except OSError:
+        log.exception("No se pudo escribir el registro de consultas")
