@@ -1,67 +1,65 @@
+<p align="center">
+  <img src="docs/assets/bob_avatar.png" alt="Bob the Bot" width="160">
+</p>
+
 # Bob the Bot - Bot de Telegram para Análisis Bursátil
 
-Bob the Bot es un asistente de Telegram desarrollado en Python que ofrece análisis técnicos básicos de activos financieros. El bot está diseñado para interpretar consultas en lenguaje natural y comandos específicos, entregando recomendaciones basadas en los indicadores **Parabolic SAR** y **Oscilador Estocástico**, junto con una visualización gráfica.
+Bob the Bot es un asistente de Telegram desarrollado en Python que ofrece análisis técnico básico de activos financieros. Interpreta consultas en lenguaje natural y comandos, y responde con una recomendación basada en los indicadores **Parabolic SAR** y **Oscilador Estocástico**, junto con un gráfico.
 
-## 🌟 Características Principales
+Pruébalo en Telegram: [@BobAnalisisBursatil_bot](https://t.me/BobAnalisisBursatil_bot)
 
-- **Interfaz de Usuario Dual**: Responde tanto a comandos directos (ej. `/analizar AAPL`) como a preguntas en lenguaje conversacional (ej. "¿Qué opinas de TSLA?").
+El manual completo (creación con @BotFather, uso y funcionamiento interno) está en [Manual_Bob_the_Bot.pdf](Manual_Bob_the_Bot.pdf).
 
-- **Análisis Técnico Automatizado**: Calcula los indicadores con `pandas` y genera señales de "Compra", "Venta" o "Mantener" con su fuerza (fuerte, moderada o débil).
+## Características principales
 
-- **Visualización de Datos**: Genera y envía un gráfico creado con `matplotlib` que muestra el precio del activo, el Parabolic SAR y el Oscilador Estocástico para un análisis visual inmediato.
+- **Lenguaje natural y comandos**: responde a `/analizar AAPL` y también a preguntas como "¿Qué opinas de Tesla?".
+- **Análisis técnico automatizado**: calcula los indicadores con `pandas` y genera una señal de Compra, Venta o Mantener con su fuerza (fuerte, moderada o débil).
+- **Gráfico**: precio, Parabolic SAR y Oscilador Estocástico en una imagen creada con `matplotlib`, enviada junto con el análisis en un solo mensaje.
+- **Detección de tickers**: reconoce `$AMZN`, nombres de empresas (Tesla, Coca-Cola, Bimbo, Walmex...), palabras en MAYÚSCULAS y mensajes de una sola palabra.
+- **Mercado mexicano, índices y cripto**: `WALMEX.MX`, `^MXX`, `^GSPC`, `BTC-USD`, `MXN=X`.
+- **Respuesta rápida**: el trabajo pesado corre en un hilo aparte y los datos se guardan en caché 5 minutos.
+- **Registro de consultas**: guarda un historial en `consultas_bot.csv`.
 
-- **Extracción de Tickers**: Intenta identificar símbolos de activos (tickers) en los mensajes de los usuarios mediante expresiones regulares.
+## Instalación y puesta en marcha
 
-- **Registro de Consultas**: Almacena un historial de las consultas y las respuestas generadas en un archivo `consultas_bot.csv` para seguimiento y análisis de uso.
-
-## 🔧 Instalación y Puesta en Marcha
-
-Sigue estos pasos para configurar y ejecutar tu propia instancia de Bob the Bot.
-
-### Prerrequisitos
+### Requisitos
 
 - Python 3.10 o superior.
 - Una cuenta de Telegram.
 
-### 1. Clonar el Repositorio
+### 1. Clonar el repositorio
 
 ```bash
 git clone https://github.com/AnaJZP/BobTheBot.git
 cd BobTheBot
 ```
 
-### 2. Crear un Entorno Virtual (Recomendado)
-
-Para mantener las dependencias del proyecto aisladas:
+### 2. Crear un entorno virtual
 
 ```bash
-# Para Windows
-python -m venv venv
-.\venv\Scripts\activate
-
-# Para macOS/Linux
+# macOS / Linux
 python3 -m venv venv
 source venv/bin/activate
+
+# Windows
+python -m venv venv
+.\venv\Scripts\activate
 ```
 
-### 3. Instalar Dependencias
-
-El proyecto incluye un archivo `requirements.txt` con todas las librerías necesarias.
+### 3. Instalar dependencias
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Crear el Bot en Telegram con BotFather
+### 4. Crear el bot en Telegram con @BotFather
 
-Para que el bot funcione, necesitas un TOKEN de acceso de la API de Telegram.
+1. Abre Telegram y busca la cuenta verificada `@BotFather`.
+2. Envía el comando `/newbot`.
+3. Elige un nombre público (ej. `Bob the Bot`) y un nombre de usuario único que termine en `bot` (ej. `MiBobElBot`).
+4. BotFather te dará un token. **Cópialo y guárdalo en un lugar seguro**: quien lo tenga puede controlar el bot.
 
-1. Abre Telegram y busca la cuenta verificada: `@BotFather`.
-2. Inicia una conversación y envía el comando `/newbot`.
-3. Sigue las instrucciones para elegir un nombre público (ej. `Bob the Bot`) y un nombre de usuario único que termine en `bot` (ej. `MiBobElBot`).
-4. Al finalizar, BotFather te proporcionará un token. **Copia este token y guárdalo en un lugar seguro**.
-
-### 5. Configurar el Token en el Proyecto
+### 5. Configurar el token
 
 El token **no se escribe en el código**. Crea un archivo `.env` en la carpeta del proyecto con esta línea:
 
@@ -69,53 +67,60 @@ El token **no se escribe en el código**. Crea un archivo `.env` en la carpeta d
 TELEGRAM_BOT_TOKEN=123456:ABC...
 ```
 
-También puedes exportarlo como variable de entorno (`export TELEGRAM_BOT_TOKEN=...`). El archivo `.env` está en `.gitignore`.
+También puedes exportarlo como variable de entorno (`export TELEGRAM_BOT_TOKEN=...`). El archivo `.env` está en `.gitignore` y nunca se sube al repositorio.
 
-### 6. Ejecutar el Bot
+Variables opcionales: `BOB_HISTORY_PERIOD` (por defecto `1y`) y `BOB_CHART_DAYS` (por defecto `120`).
 
-Una vez instalado y configurado, inicia el bot con el siguiente comando, que ejecuta el archivo `main.py`:
+### 6. Ejecutar el bot
 
 ```bash
 python main.py
 ```
 
-Si todo está correcto, verás el mensaje `Bot iniciado. Presiona Ctrl+C para detener.` en tu terminal. ¡Tu bot ya está en línea!
+Si todo está correcto verás `Bot iniciado. Presiona Ctrl+C para detener.` en la terminal. El bot solo responde mientras el programa esté corriendo.
 
-## 📁 Estructura del Proyecto
+## Uso del bot
 
-- **`main.py`**: Punto de entrada.
-- **`bot_logic.py`**: Handlers de Telegram (comandos, texto libre, botones), formato de la respuesta y manejo de errores. El trabajo pesado corre en un hilo con `asyncio.to_thread` para no bloquear al bot.
-- **`config.py`**: Lee el token y parámetros desde variables de entorno / `.env`.
-- **`ticker_parser.py`**: Detecta el ticker en mensajes (`$AMZN`, nombres como "Tesla" o "Bimbo", palabras en MAYÚSCULAS).
-- **`data_provider.py`**: Histórico y precio con `yfinance` en una sola petición, con caché de 5 minutos.
-- **`technical_analysis.py`**: Parabolic SAR y Oscilador Estocástico (pandas puro) y la señal combinada con su fuerza.
-- **`charts.py`**: Gráfico de precio + SAR + Estocástico en PNG.
-- **`query_logger.py`**: Registro de consultas en `consultas_bot.csv` (no se versiona: contiene IDs de usuarios).
-- **`Manual_Bob_the_Bot.pdf`**: Manual completo en tres partes: I. puesta en marcha desde @BotFather, II. uso del bot y III. funcionamiento interno.
-- **`docs/generar_pdfs.py`**: Regenera el manual (sin conexión reutiliza el ejemplo guardado en `docs/assets/`):
+- `/start`: bienvenida con botones de ejemplo.
+- `/analizar AAPL`: análisis de un activo (hasta 3 a la vez: `/analizar AAPL MSFT KO`).
+- `/ayuda`: lista de comandos y ejemplos.
+- Mensajes libres: "¿Cómo ves a GOOG?", "¿Compro bimbo?", "$AMZN".
 
-  ```bash
-  pip install reportlab
-  python docs/generar_pdfs.py --bot-username @BobAnalisisBursatil_bot
-  ```
+Cada respuesta incluye el gráfico, la señal con su justificación, el detalle de cada indicador y un botón **Actualizar** para volver a consultar ese activo.
 
-## ⚖️ Descargo de Responsabilidad
+## Estructura del proyecto
 
-Este bot es una herramienta creada con fines educativos y de demostración. Los análisis que proporciona se basan únicamente en datos históricos e indicadores técnicos automatizados. **Esta información no constituye asesoramiento financiero**. Siempre debes realizar tu propia investigación y considerar múltiples factores antes de tomar cualquier decisión de inversión.
+| Archivo | Descripción |
+|---|---|
+| `main.py` | Punto de entrada. |
+| `bot_logic.py` | Handlers de Telegram (comandos, texto libre, botones), formato de la respuesta y manejo de errores. |
+| `config.py` | Lee el token y los parámetros desde variables de entorno o `.env`. |
+| `ticker_parser.py` | Detecta el ticker en los mensajes. |
+| `data_provider.py` | Histórico y precio con `yfinance` en una sola petición, con caché de 5 minutos. |
+| `technical_analysis.py` | Parabolic SAR, Oscilador Estocástico y señal combinada. |
+| `charts.py` | Gráfico de precio, SAR y Estocástico en PNG. |
+| `query_logger.py` | Registro de consultas en `consultas_bot.csv` (no se versiona: contiene IDs de usuarios). |
+| `Manual_Bob_the_Bot.pdf` | Manual completo en tres partes: puesta en marcha, uso y funcionamiento interno. |
+| `docs/generar_pdfs.py` | Regenera el manual. |
+| `docs/generar_avatar.py` | Genera la imagen de perfil del bot (`docs/assets/bob_avatar.png`). |
 
-## 📋 Uso del Bot
+Para regenerar el manual:
 
-Una vez que el bot esté funcionando, puedes interactuar con él de varias maneras:
+```bash
+pip install reportlab
+python docs/generar_pdfs.py
+```
 
-- Envía comandos directos como `/analizar AAPL` (hasta 3 tickers: `/analizar AAPL MSFT KO`)
-- Haz preguntas en lenguaje natural como "¿Qué opinas de Tesla?" o "¿Compro bimbo?"
-- Acciones mexicanas con `.MX` (`WALMEX.MX`), índices (`^GSPC`, `^MXX`), cripto (`BTC-USD`)
-- Recibirás el gráfico con el análisis en un solo mensaje y un botón **🔄 Actualizar**
+Para la foto de perfil del bot, envía `docs/assets/bob_avatar.png` a @BotFather con el comando `/setuserpic`.
 
-## 🤝 Contribuciones
+## Descargo de responsabilidad
 
-Las contribuciones son bienvenidas. Si encuentras algún error o tienes ideas para mejorar el bot, no dudes en abrir un issue o enviar un pull request.
+Este bot es una herramienta con fines educativos y de demostración. Sus análisis se basan únicamente en datos históricos e indicadores técnicos automatizados. **Esta información no constituye asesoramiento financiero.** Realiza siempre tu propia investigación y considera múltiples factores antes de tomar cualquier decisión de inversión.
 
-## 📝 Licencia
+## Contribuciones
 
-Este proyecto es de libre acceso
+Las contribuciones son bienvenidas. Si encuentras un error o tienes ideas para mejorar el bot, abre un issue o envía un pull request.
+
+## Licencia
+
+Este proyecto es de libre acceso.
