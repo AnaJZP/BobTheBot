@@ -1,27 +1,31 @@
+"""Registro de consultas en CSV (seguro para llamadas concurrentes)."""
+from __future__ import annotations
+
 import csv
-import os
+import logging
+import threading
 from datetime import datetime
+from pathlib import Path
 
-LOG_FILE = 'consultas_bot.csv'
-LOG_HEADER = ['timestamp', 'user_id', 'user_name', 'ticker', 'query_text', 'recommendation', 'justification']
+LOG_FILE = Path(__file__).with_name("consultas_bot.csv")
+LOG_HEADER = ["timestamp", "user_id", "user_name", "ticker", "query_text", "recommendation", "justification"]
 
-def log_query(user_id: int, user_name: str, ticker: str, query_text: str, recommendation: str, justification: str):
-    """Registra una consulta en el archivo CSV."""
-    file_exists = os.path.isfile(LOG_FILE)
-    
+_lock = threading.Lock()
+log = logging.getLogger(__name__)
+
+
+def log_query(user_id: int, user_name: str, ticker: str, query_text: str,
+              recommendation: str, justification: str) -> None:
+    """Agrega una fila al CSV de consultas."""
+    row = [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user_id, user_name, ticker,
+           query_text, recommendation, justification]
     try:
-        with open(LOG_FILE, 'a', newline='', encoding='utf-8') as csvfile:
-            writer = csv.writer(csvfile)
-            if not file_exists or os.path.getsize(LOG_FILE) == 0: # Escribir encabezado si el archivo es nuevo o vacío
-                writer.writerow(LOG_HEADER)
-            
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            writer.writerow([timestamp, user_id, user_name, ticker, query_text, recommendation, justification])
-    except Exception as e:
-        print(f"Error al escribir en el log: {e}")
-
-if __name__ == '__main__':
-    # Prueba de log
-    log_query(12345, "test_user", "AAPL", "¿Compro AAPL?", "Compra", "PSAR cruzó hacia arriba.")
-    log_query(67890, "another_user", "GOOG", "Opinión GOOG", "Mantener", "Indicadores neutrales.")
-    print(f"Consultas de prueba registradas en {LOG_FILE}")
+        with _lock:
+            new_file = not LOG_FILE.exists() or LOG_FILE.stat().st_size == 0
+            with LOG_FILE.open("a", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                if new_file:
+                    writer.writerow(LOG_HEADER)
+                writer.writerow(row)
+    except OSError:
+        log.exception("No se pudo escribir en %s", LOG_FILE)

@@ -1,0 +1,12 @@
+AAPL
+<b>📊 AAPL</b>  ·  352.20 USD
+🟡 Señal: <b>MANTENER</b>
+Sin cruces nuevos. SAR: tendencia alcista. Estocástico: En sobrecompra (&gt;80). Atento a un cruce bajista.
+
+<b>Parabolic SAR</b> — Tendencia alcista
+El SAR (338.63) sigue debajo del precio (352.20, +3.9%). Sin cruce nuevo.
+
+<b>Estocástico 14-3-3</b> — %K 80.2 · %D 85.0
+En sobrecompra (&gt;80). Atento a un cruce bajista.
+
+<i>Datos al 17/11/2026. Educativo, no es asesoría financiera.</i>

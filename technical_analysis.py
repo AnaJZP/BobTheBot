@@ -1,167 +1,190 @@
+"""Indicadores técnicos (Parabolic SAR y Oscilador Estocástico) y señal combinada.
+
+Los indicadores se calculan con pandas/numpy puros (sin pandas_ta), una sola vez
+por consulta, y el mismo DataFrame se reutiliza para el gráfico.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import numpy as np
 import pandas as pd
-import pandas_ta as ta # pip install pandas_ta
 
-def analyze_parabolic_sar(df_stock_data: pd.DataFrame) -> tuple[str, str]:
+COMPRA, VENTA, MANTENER = "Compra", "Venta", "Mantener"
+
+PSAR_STEP, PSAR_MAX = 0.02, 0.2
+STOCH_K, STOCH_D, STOCH_SMOOTH = 14, 3, 3
+OVERSOLD, OVERBOUGHT = 20, 80
+
+
+# --------------------------------------------------------------------------- #
+# Cálculo de indicadores
+# --------------------------------------------------------------------------- #
+def parabolic_sar(high: pd.Series, low: pd.Series, step: float = PSAR_STEP,
+                  max_af: float = PSAR_MAX) -> tuple[pd.Series, pd.Series]:
+    """Parabolic SAR de Wilder.
+
+    Devuelve (sar, tendencia) donde tendencia es +1 (alcista: SAR debajo del
+    precio) o -1 (bajista: SAR encima del precio).
     """
-    Analiza la señal del Parabolic SAR.
+    h, l = high.to_numpy(float), low.to_numpy(float)
+    n = len(h)
+    sar = np.full(n, np.nan)
+    trend = np.zeros(n, dtype=int)
+    if n < 2:
+        return pd.Series(sar, index=high.index), pd.Series(trend, index=high.index)
 
-    Args:
-        df_stock_data (pd.DataFrame): DataFrame con columnas 'High', 'Low', 'Close'.
+    up = h[1] >= h[0]
+    ep = h[1] if up else l[1]
+    af = step
+    sar[1] = l[0] if up else h[0]
+    trend[1] = 1 if up else -1
 
-    Returns:
-        tuple[str, str]: (Señal: "Compra", "Venta" o "Mantener", Justificación)
-    """
-    if df_stock_data is None or df_stock_data.empty or len(df_stock_data) < 2:
-        return "Mantener", "Datos insuficientes para Parabolic SAR."
+    for i in range(2, n):
+        s = sar[i - 1] + af * (ep - sar[i - 1])
+        if up:
+            s = min(s, l[i - 1], l[i - 2])
+            if l[i] < s:                      # reversión a bajista
+                up, s, ep, af = False, ep, l[i], step
+            elif h[i] > ep:
+                ep, af = h[i], min(af + step, max_af)
+        else:
+            s = max(s, h[i - 1], h[i - 2])
+            if h[i] > s:                      # reversión a alcista
+                up, s, ep, af = True, ep, h[i], step
+            elif l[i] < ep:
+                ep, af = l[i], min(af + step, max_af)
+        sar[i] = s
+        trend[i] = 1 if up else -1
 
-    # Calcular PSAR
-    df_stock_data.ta.psar(append=True) # Añade columnas PSARl (long), PSARs (short), PSARaf, PSARr
+    return pd.Series(sar, index=high.index), pd.Series(trend, index=high.index)
 
-    # La columna relevante es PSARs para señales de venta y PSARl para señales de compra
-    # pandas_ta puede devolver una columna 'PSAR' o 'PSAR_0.02_0.2' dependiendo de la versión.
-    # Buscamos una columna que contenga 'PSAR' pero no 'PSARaf' o 'PSARr'.
-    psar_col_name = None
-    for col in df_stock_data.columns:
-        if "PSAR" in col and "PSARaf" not in col and "PSARr" not in col:
-            psar_col_name = col
-            break
-    
-    if psar_col_name is None or psar_col_name not in df_stock_data.columns:
-         return "Mantener", "No se pudo calcular la columna PSAR principal."
 
-    last_close = df_stock_data['Close'].iloc[-1]
-    prev_close = df_stock_data['Close'].iloc[-2]
-    
-    last_psar = df_stock_data[psar_col_name].iloc[-1]
-    prev_psar = df_stock_data[psar_col_name].iloc[-2]
+def stochastic(high: pd.Series, low: pd.Series, close: pd.Series, k: int = STOCH_K,
+               d: int = STOCH_D, smooth_k: int = STOCH_SMOOTH) -> tuple[pd.Series, pd.Series]:
+    """Oscilador Estocástico lento (k, d, smooth_k). Devuelve (%K, %D)."""
+    lowest = low.rolling(k).min()
+    highest = high.rolling(k).max()
+    rng = (highest - lowest).replace(0, np.nan)
+    raw_k = 100 * (close - lowest) / rng
+    pct_k = raw_k.rolling(smooth_k).mean()
+    pct_d = pct_k.rolling(d).mean()
+    return pct_k, pct_d
 
-    signal = "Mantener"
-    justification = f"Precio ({last_close:.2f}), PSAR ({last_psar:.2f}). "
 
-    # Señal de Compra: Precio cruza POR ENCIMA del PSAR
-    # (PSAR estaba arriba y ahora está abajo O el precio cierra encima del PSAR que está abajo)
-    if prev_close < prev_psar and last_close > last_psar: # Cruce alcista
-        signal = "Compra"
-        justification += "El precio ha cruzado por encima del Parabolic SAR."
-    # Señal de Venta: Precio cruza POR DEBAJO del PSAR
-    # (PSAR estaba abajo y ahora está arriba O el precio cierra debajo del PSAR que está arriba)
-    elif prev_close > prev_psar and last_close < last_psar: # Cruce bajista
-        signal = "Venta"
-        justification += "El precio ha cruzado por debajo del Parabolic SAR."
-    elif last_close > last_psar:
-        justification += "El precio se mantiene por encima del Parabolic SAR (tendencia alcista)."
-        signal = "Mantener (Posición Larga)" # O simplemente Mantener si no hay posición.
-    elif last_close < last_psar:
-        justification += "El precio se mantiene por debajo del Parabolic SAR (tendencia bajista)."
-        signal = "Mantener (Posición Corta)" # O simplemente Mantener.
+def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """Devuelve una copia del DataFrame con columnas PSAR, PSAR_TREND, STOCH_K y STOCH_D."""
+    out = df.copy()
+    out["PSAR"], out["PSAR_TREND"] = parabolic_sar(out["High"], out["Low"])
+    out["STOCH_K"], out["STOCH_D"] = stochastic(out["High"], out["Low"], out["Close"])
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Interpretación
+# --------------------------------------------------------------------------- #
+@dataclass
+class IndicatorResult:
+    signal: str          # Compra / Venta / Mantener
+    summary: str         # resumen corto (ej. "Tendencia alcista")
+    note: str            # explicación en lenguaje natural
+
+
+@dataclass
+class Analysis:
+    ticker: str
+    signal: str
+    strength: str        # Fuerte / Moderada / "" (si es Mantener)
+    justification: str
+    psar: IndicatorResult
+    stoch: IndicatorResult
+    last_close: float
+    last_date: pd.Timestamp
+    data: pd.DataFrame   # DataFrame con indicadores (para graficar)
+
+
+def analyze_parabolic_sar(df: pd.DataFrame) -> IndicatorResult:
+    valid = df.dropna(subset=["PSAR"])
+    if len(valid) < 2:
+        return IndicatorResult(MANTENER, "Sin datos", "Datos insuficientes para el Parabolic SAR.")
+
+    last, prev = valid.iloc[-1], valid.iloc[-2]
+    close, sar = last["Close"], last["PSAR"]
+    dist = (close - sar) / close * 100
+
+    if last["PSAR_TREND"] == 1 and prev["PSAR_TREND"] == -1:
+        return IndicatorResult(COMPRA, "Giro alcista",
+                               f"El precio ({close:.2f}) cruzó por encima del SAR ({sar:.2f}): posible inicio de tendencia alcista.")
+    if last["PSAR_TREND"] == -1 and prev["PSAR_TREND"] == 1:
+        return IndicatorResult(VENTA, "Giro bajista",
+                               f"El precio ({close:.2f}) cruzó por debajo del SAR ({sar:.2f}): posible inicio de tendencia bajista.")
+    if last["PSAR_TREND"] == 1:
+        return IndicatorResult(MANTENER, "Tendencia alcista",
+                               f"El SAR ({sar:.2f}) sigue debajo del precio ({close:.2f}, {dist:+.1f}%). Sin cruce nuevo.")
+    return IndicatorResult(MANTENER, "Tendencia bajista",
+                           f"El SAR ({sar:.2f}) sigue encima del precio ({close:.2f}, {dist:+.1f}%). Sin cruce nuevo.")
+
+
+def analyze_stochastic_oscillator(df: pd.DataFrame) -> IndicatorResult:
+    valid = df.dropna(subset=["STOCH_K", "STOCH_D"])
+    if len(valid) < 2:
+        return IndicatorResult(MANTENER, "Sin datos", "Datos insuficientes para el Oscilador Estocástico.")
+
+    k, d = valid["STOCH_K"].iloc[-1], valid["STOCH_D"].iloc[-1]
+    pk, pd_ = valid["STOCH_K"].iloc[-2], valid["STOCH_D"].iloc[-2]
+    summary = f"%K {k:.1f} · %D {d:.1f}"
+
+    crossed_up = pk <= pd_ and k > d
+    crossed_down = pk >= pd_ and k < d
+
+    if crossed_up and min(pk, k) < OVERSOLD:
+        return IndicatorResult(COMPRA, summary, f"%K cruzó por encima de %D en zona de sobreventa (<{OVERSOLD}).")
+    if crossed_down and max(pk, k) > OVERBOUGHT:
+        return IndicatorResult(VENTA, summary, f"%K cruzó por debajo de %D en zona de sobrecompra (>{OVERBOUGHT}).")
+    if k < OVERSOLD:
+        return IndicatorResult(MANTENER, summary, f"En sobreventa (<{OVERSOLD}). Atento a un cruce alcista.")
+    if k > OVERBOUGHT:
+        return IndicatorResult(MANTENER, summary, f"En sobrecompra (>{OVERBOUGHT}). Atento a un cruce bajista.")
+    return IndicatorResult(MANTENER, summary, "Zona neutral, sin cruces relevantes.")
+
+
+def analyze(df: pd.DataFrame, ticker: str) -> Analysis:
+    """Calcula indicadores y genera la recomendación combinada."""
+    data = compute_indicators(df)
+    psar = analyze_parabolic_sar(data)
+    stoch = analyze_stochastic_oscillator(data)
+
+    signals = {psar.signal, stoch.signal} - {MANTENER}
+    if len(signals) == 2:
+        signal, strength = MANTENER, ""
+        justification = "Los indicadores se contradicen (uno sugiere compra y otro venta). Mejor esperar confirmación."
+    elif psar.signal == stoch.signal != MANTENER:
+        signal, strength = psar.signal, "Fuerte"
+        justification = "Ambos indicadores coinciden en la misma señal."
+    elif signals:
+        signal, strength = signals.pop(), "Moderada"
+        name, other = ("Parabolic SAR", "Estocástico") if psar.signal != MANTENER else ("Estocástico", "Parabolic SAR")
+        justification = f"Señal del {name}; el {other} no la contradice."
+        trend = data["PSAR_TREND"].iloc[-1]
+        if stoch.signal != MANTENER and (trend == 1) != (signal == COMPRA):
+            strength = "Débil"
+            justification = "Señal del Estocástico, pero va en contra de la tendencia del Parabolic SAR."
     else:
-        justification += "El precio y el Parabolic SAR están muy juntos o no hay señal clara."
+        signal, strength = MANTENER, ""
+        justification = f"Sin cruces nuevos. SAR: {psar.summary.lower()}. Estocástico: {stoch.note}"
 
-    return signal, justification
-
-def analyze_stochastic_oscillator(df_stock_data: pd.DataFrame, k: int = 14, d: int = 3, smooth_k: int = 3) -> tuple[str, str]:
-    """
-    Analiza la señal del Oscilador Estocástico.
-
-    Args:
-        df_stock_data (pd.DataFrame): DataFrame con columnas 'High', 'Low', 'Close'.
-        k (int): Periodo para %K.
-        d (int): Periodo para %D (media móvil de %K).
-        smooth_k (int): Suavizado para %K.
-
-    Returns:
-        tuple[str, str]: (Señal: "Compra", "Venta" o "Mantener", Justificación)
-    """
-    if df_stock_data is None or df_stock_data.empty or len(df_stock_data) < k + d: # Necesita suficientes datos
-        return "Mantener", "Datos insuficientes para Oscilador Estocástico."
-
-    # Calcular Estocástico
-    df_stock_data.ta.stoch(k=k, d=d, smooth_k=smooth_k, append=True)
-    # Columnas añadidas: STOCHk_14_3_3 (%K), STOCHd_14_3_3 (%D)
-
-    k_col = f'STOCHk_{k}_{d}_{smooth_k}'
-    d_col = f'STOCHd_{k}_{d}_{smooth_k}'
-
-    if k_col not in df_stock_data.columns or d_col not in df_stock_data.columns:
-        return "Mantener", "No se pudieron calcular las columnas del Oscilador Estocástico."
-
-    last_k = df_stock_data[k_col].iloc[-1]
-    last_d = df_stock_data[d_col].iloc[-1]
-    prev_k = df_stock_data[k_col].iloc[-2]
-    prev_d = df_stock_data[d_col].iloc[-2]
-
-    oversold_level = 20
-    overbought_level = 80
-    signal = "Mantener"
-    justification = f"%K ({last_k:.2f}), %D ({last_d:.2f}). "
-
-    # Señal de Compra: %K cruza %D desde abajo, en zona de sobreventa
-    if prev_k < prev_d and last_k > last_d and last_k < oversold_level:
-        signal = "Compra"
-        justification += f"%K cruzó por encima de %D en la zona de sobreventa (<{oversold_level})."
-    # Señal de Venta: %K cruza %D desde arriba, en zona de sobrecompra
-    elif prev_k > prev_d and last_k < last_d and last_k > overbought_level:
-        signal = "Venta"
-        justification += f"%K cruzó por debajo de %D en la zona de sobrecompra (>{overbought_level})."
-    # Otras condiciones para mantener o salir de zonas extremas
-    elif last_k < oversold_level or last_d < oversold_level:
-        justification += f"Indicador en zona de sobreventa (<{oversold_level}). Atender a cruces alcistas."
-    elif last_k > overbought_level or last_d > overbought_level:
-        justification += f"Indicador en zona de sobrecompra (>{overbought_level}). Atender a cruces bajistas."
-    else:
-        justification += "Indicador en zona neutral."
-        
-    return signal, justification
-
-def generate_combined_recommendation(df_stock_data: pd.DataFrame, ticker_symbol: str) -> tuple[str, str, str, str, str]:
-    """
-    Genera una recomendación combinada o elige una estrategia.
-    Para este ejemplo, se mostrarán ambas y se intentará una recomendación consolidada.
-    """
-    if df_stock_data is None:
-        return "Error", "No se pudieron obtener datos del activo.", "", "", ""
-
-    sar_signal, sar_justification = analyze_parabolic_sar(df_stock_data.copy()) # Usar copia para no alterar el df original
-    stoch_signal, stoch_justification = analyze_stochastic_oscillator(df_stock_data.copy())
-
-    # Lógica de recomendación consolidada (simplificada):
-    # Si ambas señales coinciden (y no son "Mantener")
-    if sar_signal == stoch_signal and sar_signal != "Mantener":
-        final_signal = sar_signal
-        final_justification = f"Ambos indicadores coinciden: {sar_justification} Y {stoch_justification}"
-    # Si una es fuerte y la otra es mantener
-    elif sar_signal != "Mantener" and stoch_signal == "Mantener":
-        final_signal = sar_signal
-        final_justification = f"PSAR: {sar_justification} (Estocástico en {stoch_signal})"
-    elif stoch_signal != "Mantener" and sar_signal == "Mantener":
-        final_signal = stoch_signal
-        final_justification = f"Estocástico: {stoch_justification} (PSAR en {sar_signal})"
-    # Si hay conflicto o ambas son mantener
-    else:
-        final_signal = "Mantener"
-        final_justification = (f"Señales mixtas o neutrales. "
-                               f"PSAR: {sar_signal} ({sar_justification.split('. ')[1] if '. ' in sar_justification else sar_justification}). "
-                               f"Estocástico: {stoch_signal} ({stoch_justification.split('. ')[1] if '. ' in stoch_justification else stoch_justification})")
+    return Analysis(
+        ticker=ticker, signal=signal, strength=strength, justification=justification,
+        psar=psar, stoch=stoch, last_close=float(data["Close"].iloc[-1]),
+        last_date=data.index[-1], data=data,
+    )
 
 
-    # Para un reporte más educativo, podrías devolver ambas individualmente
-    # En este caso, priorizamos una única señal como pide el requerimiento
-    return final_signal, final_justification, sar_signal, sar_justification, stoch_signal, stoch_justification
+if __name__ == "__main__":
+    from data_provider import get_market_data
 
-
-if __name__ == '__main__':
-    # Pruebas
-    from data_provider import get_stock_data # Para prueba local
-    datos_test = get_stock_data("MSFT", period="1y", interval="1d")
-    if datos_test is not None:
-        print(f"\n--- Análisis para MSFT (Precio Cierre: {datos_test['Close'].iloc[-1]:.2f}) ---")
-        
-        sig_sar, just_sar = analyze_parabolic_sar(datos_test.copy())
-        print(f"PSAR: Señal '{sig_sar}', Justificación: {just_sar}")
-
-        sig_stoch, just_stoch = analyze_stochastic_oscillator(datos_test.copy())
-        print(f"Estocástico: Señal '{sig_stoch}', Justificación: {just_stoch}")
-
-        print("\n--- Recomendación Consolidada ---")
-        final_sig, final_just, _, _, _, _ = generate_combined_recommendation(datos_test, "MSFT")
-        print(f"Señal Final: {final_sig}\nJustificación: {final_just}")
+    md = get_market_data("MSFT")
+    if md:
+        a = analyze(md.history, "MSFT")
+        print(f"{a.ticker}: {a.signal} {a.strength}\n{a.justification}\n"
+              f"PSAR: {a.psar.signal} – {a.psar.note}\nStoch: {a.stoch.signal} – {a.stoch.note}")

@@ -4,9 +4,8 @@ venv/
 ENV/
 env/
 *.env
+.env
 
-# Archivos de configuración sensibles
-config.py
 
 # Archivos compilados de Python y cachés
 __pycache__/
@@ -19,8 +18,8 @@ __pycache__/
 
 # Logs y archivos de datos generados (si no quieres versionarlos)
 *.log
-*.csv # Si no quieres que el archivo de logs de consultas (consultas_bot.csv) se suba al repo
-      # Si SÍ quieres versionar el CSV de logs, comenta o elimina esta línea.
+# El log de consultas contiene IDs de usuarios de Telegram: no se versiona
+consultas_bot.csv
 
 # Archivos de IDEs y editores
 .vscode/

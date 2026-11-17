@@ -6,7 +6,7 @@ Bob the Bot es un asistente de Telegram desarrollado en Python que ofrece análi
 
 - **Interfaz de Usuario Dual**: Responde tanto a comandos directos (ej. `/analizar AAPL`) como a preguntas en lenguaje conversacional (ej. "¿Qué opinas de TSLA?").
 
-- **Análisis Técnico Automatizado**: Utiliza la librería `pandas_ta` para calcular indicadores y generar señales de "Compra", "Venta" o "Mantener".
+- **Análisis Técnico Automatizado**: Calcula los indicadores con `pandas` y genera señales de "Compra", "Venta" o "Mantener" con su fuerza (fuerte, moderada o débil).
 
 - **Visualización de Datos**: Genera y envía un gráfico creado con `matplotlib` que muestra el precio del activo, el Parabolic SAR y el Oscilador Estocástico para un análisis visual inmediato.
 
@@ -20,7 +20,7 @@ Sigue estos pasos para configurar y ejecutar tu propia instancia de Bob the Bot.
 
 ### Prerrequisitos
 
-- Python 3.8 o superior.
+- Python 3.10 o superior.
 - Una cuenta de Telegram.
 
 ### 1. Clonar el Repositorio
@@ -63,12 +63,13 @@ Para que el bot funcione, necesitas un TOKEN de acceso de la API de Telegram.
 
 ### 5. Configurar el Token en el Proyecto
 
-Abre el archivo `config.py` y reemplaza el texto del marcador de posición con el token que obtuviste.
+El token **no se escribe en el código**. Crea un archivo `.env` en la carpeta del proyecto con esta línea:
 
-```python
-# config.py
-TELEGRAM_BOT_TOKEN = "AQUÍ_VA_TU_TOKEN_SECRETO"
 ```
+TELEGRAM_BOT_TOKEN=123456:ABC...
+```
+
+También puedes exportarlo como variable de entorno (`export TELEGRAM_BOT_TOKEN=...`). El archivo `.env` está en `.gitignore`.
 
 ### 6. Ejecutar el Bot
 
@@ -82,19 +83,21 @@ Si todo está correcto, verás el mensaje `Bot iniciado. Presiona Ctrl+C para de
 
 ## 📁 Estructura del Proyecto
 
-- **`main.py`**: Punto de entrada que inicia la ejecución del bot.
+- **`main.py`**: Punto de entrada.
+- **`bot_logic.py`**: Handlers de Telegram (comandos, texto libre, botones), formato de la respuesta y manejo de errores. El trabajo pesado corre en un hilo con `asyncio.to_thread` para no bloquear al bot.
+- **`config.py`**: Lee el token y parámetros desde variables de entorno / `.env`.
+- **`ticker_parser.py`**: Detecta el ticker en mensajes (`$AMZN`, nombres como "Tesla" o "Bimbo", palabras en MAYÚSCULAS).
+- **`data_provider.py`**: Histórico y precio con `yfinance` en una sola petición, con caché de 5 minutos.
+- **`technical_analysis.py`**: Parabolic SAR y Oscilador Estocástico (pandas puro) y la señal combinada con su fuerza.
+- **`charts.py`**: Gráfico de precio + SAR + Estocástico en PNG.
+- **`query_logger.py`**: Registro de consultas en `consultas_bot.csv` (no se versiona: contiene IDs de usuarios).
+- **`Manual_Bob_the_Bot.pdf`**: Manual completo en tres partes: I. puesta en marcha desde @BotFather, II. uso del bot y III. funcionamiento interno.
+- **`docs/generar_pdfs.py`**: Regenera el manual (sin conexión reutiliza el ejemplo guardado en `docs/assets/`):
 
-- **`bot_logic.py`**: Contiene toda la lógica de Telegram: manejo de comandos, procesamiento de mensajes, orquestación del análisis y envío de respuestas.
-
-- **`config.py`**: Almacena configuraciones sensibles, como el token del bot de Telegram.
-
-- **`data_provider.py`**: Se encarga de obtener los datos históricos y el precio actual de los activos financieros utilizando la librería `yfinance`.
-
-- **`technical_analysis.py`**: Realiza los cálculos de los indicadores técnicos (Parabolic SAR y Oscilador Estocástico) para generar las señales.
-
-- **`query_logger.py`**: Gestiona el registro de todas las consultas de los usuarios en un archivo CSV para su posterior análisis.
-
-- **`requirements.txt`**: Lista las dependencias de Python necesarias para que el proyecto funcione correctamente.
+  ```bash
+  pip install reportlab
+  python docs/generar_pdfs.py --bot-username @BobAnalisisBursatil_bot
+  ```
 
 ## ⚖️ Descargo de Responsabilidad
 
@@ -104,10 +107,10 @@ Este bot es una herramienta creada con fines educativos y de demostración. Los 
 
 Una vez que el bot esté funcionando, puedes interactuar con él de varias maneras:
 
-- Envía comandos directos como `/analizar AAPL`
-- Haz preguntas en lenguaje natural como "¿Qué opinas de Tesla?"
-- El bot identificará automáticamente los símbolos de acciones en tus mensajes
-- Recibirás un análisis técnico junto con un gráfico visual
+- Envía comandos directos como `/analizar AAPL` (hasta 3 tickers: `/analizar AAPL MSFT KO`)
+- Haz preguntas en lenguaje natural como "¿Qué opinas de Tesla?" o "¿Compro bimbo?"
+- Acciones mexicanas con `.MX` (`WALMEX.MX`), índices (`^GSPC`, `^MXX`), cripto (`BTC-USD`)
+- Recibirás el gráfico con el análisis en un solo mensaje y un botón **🔄 Actualizar**
 
 ## 🤝 Contribuciones
 
