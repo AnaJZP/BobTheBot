@@ -101,6 +101,7 @@ class Analysis:
     last_close: float
     last_date: pd.Timestamp
     data: pd.DataFrame   # DataFrame con indicadores (para graficar)
+    timeframe: str = "1d"
 
 
 def analyze_parabolic_sar(df: pd.DataFrame) -> IndicatorResult:
@@ -148,7 +149,7 @@ def analyze_stochastic_oscillator(df: pd.DataFrame) -> IndicatorResult:
     return IndicatorResult(MANTENER, summary, "Zona neutral, sin cruces relevantes.")
 
 
-def analyze(df: pd.DataFrame, ticker: str) -> Analysis:
+def analyze(df: pd.DataFrame, ticker: str, timeframe: str = "1d") -> Analysis:
     """Calcula indicadores y genera la recomendación combinada."""
     data = compute_indicators(df)
     psar = analyze_parabolic_sar(data)
@@ -176,7 +177,7 @@ def analyze(df: pd.DataFrame, ticker: str) -> Analysis:
     return Analysis(
         ticker=ticker, signal=signal, strength=strength, justification=justification,
         psar=psar, stoch=stoch, last_close=float(data["Close"].iloc[-1]),
-        last_date=data.index[-1], data=data,
+        last_date=data.index[-1], data=data, timeframe=timeframe,
     )
 
 
@@ -185,6 +186,6 @@ if __name__ == "__main__":
 
     md = get_market_data("MSFT")
     if md:
-        a = analyze(md.history, "MSFT")
+        a = analyze(md.history, "MSFT", md.timeframe)
         print(f"{a.ticker}: {a.signal} {a.strength}\n{a.justification}\n"
               f"PSAR: {a.psar.signal} – {a.psar.note}\nStoch: {a.stoch.signal} – {a.stoch.note}")

@@ -12,6 +12,6 @@ except ImportError:  # python-dotenv es opcional
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 
-# Periodo de datos históricos a descargar y días que se muestran en el gráfico
-HISTORY_PERIOD = os.getenv("BOB_HISTORY_PERIOD", "1y")
-CHART_DAYS = int(os.getenv("BOB_CHART_DAYS", "120"))
+# Número de velas que se muestran en el gráfico (el periodo descargado depende de la
+# ventana de tiempo elegida: ver TIMEFRAMES en data_provider.py)
+CHART_BARS = int(os.getenv("BOB_CHART_BARS", "120"))

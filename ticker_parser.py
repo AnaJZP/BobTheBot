@@ -30,10 +30,28 @@ STOPWORDS = {
     "ANÁLISIS", "ANALIZA", "ANALIZAR", "POR", "FAVOR", "PORFA", "PARA", "CON", "SOBRE",
     "HOLA", "BOB", "BOT", "GRACIAS", "TAL", "ESTA", "ESTÁ", "AHORA", "ACCION", "ACCIÓN",
     "ACCIONES", "PRECIO", "DIME", "DAME", "VS", "OK", "BUENO", "BIEN", "MAL",
+    # ventanas de tiempo
+    "1H", "4H", "1D", "H", "HR", "HRS", "HORA", "HORAS", "DIA", "DÍA", "DIAS", "DÍAS", "DIARIO",
+    "DIARIA", "INTRADIA", "INTRADÍA", "VELAS", "VELA", "GRAFICA", "GRÁFICA", "GRAFICO", "GRÁFICO",
 }
 
-_TICKER_RE = re.compile(r"^\^?[A-Z0-9]{1,10}(?:[.\-=][A-Z0-9]{1,6})?$")
+# Ventana de tiempo en texto libre: "4h", "4 horas", "1 hora", "1d", "diario"…
+_TIMEFRAME_PATTERNS = [
+    ("4h", re.compile(r"(?<![\w.])4\s*(?:h|hr|hrs|horas?)(?![\w])", re.I)),
+    ("1h", re.compile(r"(?<![\w.])(?:1\s*(?:h|hr|horas?)|una\s+hora|horari[oa])(?![\w])", re.I)),
+    ("1d", re.compile(r"(?<![\w.])(?:1\s*d|1\s*d[ií]a|un\s+d[ií]a|diari[oa])(?![\w])", re.I)),
+]
+
+_TICKER_RE = re.compile(r"^\^?[A-Z0-9]{1,12}(?:[.\-=][A-Z0-9]{1,6}){0,2}$")
 _TOKEN_RE = re.compile(r"[\w.^=&\-]+")
+
+
+def extract_timeframe(text: str) -> str | None:
+    """Devuelve "1h", "4h" o "1d" si el texto menciona una ventana de tiempo."""
+    for tf, rx in _TIMEFRAME_PATTERNS:
+        if rx.search(text or ""):
+            return tf
+    return None
 
 
 def _strip_accents(s: str) -> str:

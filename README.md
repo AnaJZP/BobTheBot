@@ -14,7 +14,9 @@ El manual completo (creación con @BotFather, uso y funcionamiento interno) est�
 
 - **Lenguaje natural y comandos**: responde a `/analizar AAPL` y también a preguntas como "¿Qué opinas de Tesla?".
 - **Análisis técnico automatizado**: calcula los indicadores con `pandas` y genera una señal de Compra, Venta o Mantener con su fuerza (fuerte, moderada o débil).
-- **Gráfico**: precio, Parabolic SAR y Oscilador Estocástico en una imagen creada con `matplotlib`, enviada junto con el análisis en un solo mensaje.
+- **Gráfico de velas**: velas japonesas con Parabolic SAR y Oscilador Estocástico, enviadas junto con el análisis en un solo mensaje.
+- **Ventanas de tiempo**: 1 hora, 4 horas y 1 día, con botones para cambiar entre ellas.
+- **Menú por mercado y sector**: Mercado mexicano (BMV), SIC y ETFs, cada uno dividido en sectores (financiero, consumo, tecnología, índices, renta fija, etc.).
 - **Detección de tickers**: reconoce `$AMZN`, nombres de empresas (Tesla, Coca-Cola, Bimbo, Walmex...), palabras en MAYÚSCULAS y mensajes de una sola palabra.
 - **Mercado mexicano, índices y cripto**: `WALMEX.MX`, `^MXX`, `^GSPC`, `BTC-USD`, `MXN=X`.
 - **Respuesta rápida**: el trabajo pesado corre en un hilo aparte y los datos se guardan en caché 5 minutos.
@@ -69,7 +71,7 @@ TELEGRAM_BOT_TOKEN=123456:ABC...
 
 También puedes exportarlo como variable de entorno (`export TELEGRAM_BOT_TOKEN=...`). El archivo `.env` está en `.gitignore` y nunca se sube al repositorio.
 
-Variables opcionales: `BOB_HISTORY_PERIOD` (por defecto `1y`) y `BOB_CHART_DAYS` (por defecto `120`).
+Variable opcional: `BOB_CHART_BARS` (velas que se muestran en el gráfico, por defecto `120`).
 
 ### 6. Ejecutar el bot
 
@@ -81,12 +83,22 @@ Si todo está correcto verás `Bot iniciado. Presiona Ctrl+C para detener.` en l
 
 ## Uso del bot
 
-- `/start`: bienvenida con botones de ejemplo.
+- `/start`: bienvenida con el botón **Explorar mercados** y ejemplos.
+- `/mercados`: menú mercado (BMV, SIC, ETFs) → sector → activo.
 - `/analizar AAPL`: análisis de un activo (hasta 3 a la vez: `/analizar AAPL MSFT KO`).
+- `/analizar AAPL 4h`: análisis en otra ventana de tiempo (`1h`, `4h` o `1d`).
 - `/ayuda`: lista de comandos y ejemplos.
-- Mensajes libres: "¿Cómo ves a GOOG?", "¿Compro bimbo?", "$AMZN".
+- Mensajes libres: "¿Cómo ves a GOOG?", "¿Compro bimbo?", "$AMZN", "Tesla en 4 horas".
 
-Cada respuesta incluye el gráfico, la señal con su justificación, el detalle de cada indicador y un botón **Actualizar** para volver a consultar ese activo.
+Cada respuesta incluye el gráfico de velas, la señal con su justificación, el detalle de cada indicador y botones para cambiar de ventana (**1 hora**, **4 horas**, **1 día**), **Actualizar** y volver a **Mercados**.
+
+| Ventana | Historia usada | Nota |
+|---|---|---|
+| 1 hora | 60 días | Velas de 1 h de Yahoo Finance |
+| 4 horas | 200 días | Se arman agrupando velas de 1 h dentro de cada sesión |
+| 1 día (por defecto) | 1 año | Velas diarias |
+
+Las emisoras del SIC se analizan con su ticker de origen en EE.UU., que tiene más historia e intradía que su réplica en la BMV.
 
 ## Estructura del proyecto
 
@@ -95,10 +107,11 @@ Cada respuesta incluye el gráfico, la señal con su justificación, el detalle 
 | `main.py` | Punto de entrada. |
 | `bot_logic.py` | Handlers de Telegram (comandos, texto libre, botones), formato de la respuesta y manejo de errores. |
 | `config.py` | Lee el token y los parámetros desde variables de entorno o `.env`. |
-| `ticker_parser.py` | Detecta el ticker en los mensajes. |
-| `data_provider.py` | Histórico y precio con `yfinance` en una sola petición, con caché de 5 minutos. |
+| `ticker_parser.py` | Detecta el ticker y la ventana de tiempo en los mensajes. |
+| `catalog.py` | Catálogo del menú: mercado → sector → activos. Para agregar un activo basta con añadirlo aquí. |
+| `data_provider.py` | Velas y precio con `yfinance` según la ventana (1h, 4h, 1d), con caché de 5 minutos. |
 | `technical_analysis.py` | Parabolic SAR, Oscilador Estocástico y señal combinada. |
-| `charts.py` | Gráfico de precio, SAR y Estocástico en PNG. |
+| `charts.py` | Gráfico de velas con SAR y Estocástico en PNG. |
 | `query_logger.py` | Registro de consultas en `consultas_bot.csv` (no se versiona: contiene IDs de usuarios). |
 | `Manual_Bob_the_Bot.pdf` | Manual completo en tres partes: puesta en marcha, uso y funcionamiento interno. |
 | `docs/generar_pdfs.py` | Regenera el manual. |

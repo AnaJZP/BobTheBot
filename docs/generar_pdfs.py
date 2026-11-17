@@ -167,43 +167,48 @@ def _arrow(d, x1, y1, x2, y2, color=GREY):
 
 
 def architecture_diagram():
-    W, H = 17 * cm, 6.6 * cm
+    W, H = 17 * cm, 7.4 * cm
     d = Drawing(W, H)
-    bh = 1.15 * cm
+    bh = 1.1 * cm
     sw, cw = 4.6 * cm, 4.2 * cm                 # ancho de cajas laterales / centrales
     cx = W / 2 - cw / 2
-    rows = [0.1 * cm, 2.0 * cm, 3.9 * cm]       # y de las 3 filas laterales
-    bot_y = rows[1]
+    side_h = H - 0.1 * cm                       # alto útil para las columnas laterales
+    bot_y = (H - bh) / 2 - 0.5 * cm
 
     _box(d, cx, H - bh - 2, cw, bh, "main.py", "punto de entrada", fill=colors.white)
     _box(d, cx, bot_y, cw, bh, "bot_logic.py", "Telegram + orquestación",
          fill=NAVY, stroke=NAVY, title_color=colors.white)
     _arrow(d, W / 2, H - bh - 2, W / 2, bot_y + bh + 1)
 
-    left = [("config.py", ".env / token"), ("ticker_parser.py", "texto → ticker"),
-            ("query_logger.py", "historial CSV")]
-    right = [("data_provider.py", "yfinance + caché 5 min"),
-             ("technical_analysis.py", "SAR + Estocástico → señal"), ("charts.py", "gráfico PNG")]
+    left = [("config.py", ".env / token"), ("ticker_parser.py", "texto → ticker + ventana"),
+            ("catalog.py", "mercados → sectores → activos"), ("query_logger.py", "historial CSV")]
+    right = [("data_provider.py", "yfinance 1h · 4h · 1d + caché"),
+             ("technical_analysis.py", "SAR + Estocástico → señal"), ("charts.py", "gráfico de velas PNG")]
     mid_y = bot_y + bh / 2
-    for (name, sub), y in zip(left, reversed(rows)):
-        _box(d, 0, y, sw, bh, name, sub)
-        _arrow(d, cx, mid_y, sw + 1, y + bh / 2)
-    for (name, sub), y in zip(right, reversed(rows)):
-        _box(d, W - sw, y, sw, bh, name, sub)
-        _arrow(d, cx + cw, mid_y, W - sw - 1, y + bh / 2)
+
+    def column(items, x, arrow_from, arrow_to_x):
+        n = len(items)
+        step = (side_h - bh) / (n - 1)
+        for i, (name, sub) in enumerate(items):
+            y = side_h - bh - i * step
+            _box(d, x, y, sw, bh, name, sub)
+            _arrow(d, arrow_from, mid_y, arrow_to_x, y + bh / 2)
+
+    column(left, 0, cx, sw + 1)
+    column(right, W - sw, cx + cw, W - sw - 1)
     return d
 
 
 def flow_diagram():
     steps = [
-        ("1. Usuario", "mensaje, /analizar o botón", colors.white),
+        ("1. Usuario", "mensaje, /analizar, menú de mercados o botón", colors.white),
         ("2. Handler", "handle_message · analizar_command · button_callback", LIGHT),
-        ("3. ticker_parser", "extract_ticker(): $TICKER → nombre → MAYÚSCULAS", LIGHT),
+        ("3. ticker_parser", "extract_ticker() y extract_timeframe() (1h · 4h · 1d)", LIGHT),
         ("4. Hilo secundario", "asyncio.to_thread(_run_pipeline)", colors.HexColor("#fef3c7")),
-        ("   4a. data_provider", "get_market_data(): histórico + precio (caché 5 min)", colors.white),
+        ("   4a. data_provider", "get_market_data(ticker, ventana): velas + precio (caché 5 min)", colors.white),
         ("   4b. technical_analysis", "analyze(): indicadores una sola vez → señal", colors.white),
-        ("   4c. charts", "build_chart(): PNG en memoria", colors.white),
-        ("5. Respuesta", "foto + análisis en un solo mensaje + botón Actualizar", LIGHT),
+        ("   4c. charts", "build_chart(): velas + SAR + Estocástico (PNG)", colors.white),
+        ("5. Respuesta", "foto + análisis + botones 1h/4h/1d, Actualizar y Mercados", LIGHT),
         ("6. query_logger", "log_query() → consultas_bot.csv", LIGHT),
     ]
     W = 17 * cm
@@ -266,7 +271,7 @@ def sample_output(ticker="AAPL"):
 def telegram_text_to_rl(html_text):
     """Convierte el HTML de Telegram a marcado de ReportLab (quitando emojis)."""
     import re
-    t = re.sub(r"[\U0001F000-\U0001FFFF☀-➿️]", "", html_text)
+    t = re.sub(r"[\U0001F000-\U0001FFFF⌀-⏿☀-➿️]", "", html_text)
     t = t.replace("<code>", "<font name='Courier'>").replace("</code>", "</font>")
     return t.strip().replace("\n", "<br/>")
 
@@ -329,7 +334,7 @@ def part_setup(bot_username):
                ["/setuserpic", "Foto de perfil del bot."],
            ], [4.2 * cm, 12.8 * cm]),
            P("No hace falta configurar los comandos con " + mono("/setcommands") + ": Bob registra "
-             "automáticamente /analizar, /ayuda y /start al arrancar.", "small")]
+             "automáticamente /mercados, /analizar, /ayuda y /start al arrancar.", "small")]
 
     st += [P("3. Descargar el proyecto e instalar dependencias", "h1"),
            code("git clone https://github.com/AnaJZP/BobTheBot.git\n"
@@ -380,11 +385,26 @@ def part_usage(bot_username):
               "Abre Telegram y toca la lupa de búsqueda.",
               f"Escribe <b>{bot_username}</b> y abre el chat.",
               "Toca <b>Iniciar</b> (o envía " + mono("/start") + ").",
-              "Bob te saluda con botones de ejemplo: toca uno para ver tu primer análisis.",
+              "Bob te saluda con el botón <b>Explorar mercados</b> y ejemplos: toca uno para ver tu primer análisis.",
           ]),
           P("Consejo: el botón <b>Menú</b> junto al cuadro de texto muestra todos los comandos.", "callout")]
 
-    st += [P("7. ¿Qué le puedo preguntar a Bob?", "h1"),
+    st += [P("7. Explorar por mercado y sector", "h1"),
+           P("Envía " + mono("/mercados") + " (o toca <b>Explorar mercados</b>) y navega con los botones: "
+             "<b>mercado → sector → activo</b>. Al tocar un activo llega su análisis en velas diarias; "
+             "debajo puedes cambiar a 1 hora o 4 horas."),
+           P("Las emisoras del <b>SIC</b> (Sistema Internacional de Cotizaciones) se analizan con su "
+             "ticker de origen en EE.UU., que tiene más historia e intradía; las señales técnicas son "
+             "equivalentes a las de su réplica en la BMV.", "small"),
+           Spacer(1, 4)]
+    from catalog import MARKETS
+    for m in MARKETS.values():
+        rows = [["Sector", "Activos"]] + [
+            [sector, ", ".join(f"{name} ({t.removesuffix('.MX')})" for t, name in items)]
+            for sector, items in m["sectors"]]
+        st += [KeepTogether([P(m["name"], "h2"), table(rows, [4.4 * cm, 12.6 * cm])])]
+
+    st += [P("8. ¿Qué le puedo preguntar a Bob?", "h1"),
            P("Puedes escribirle como a un amigo o usar comandos. Así reconoce el activo:"),
            table([
                ["Escribes…", "Entiende", "Por qué"],
@@ -394,12 +414,25 @@ def part_usage(bot_username):
                ["aapl", "AAPL", "Mensaje de una sola palabra"],
                ["¿Compro bimbo?", "BIMBOA.MX", "Empresa mexicana conocida"],
                ["/analizar AAPL MSFT KO", "AAPL, MSFT, KO", "Comando (hasta 3 a la vez)"],
+               ["Tesla en 4 horas", "TSLA · 4 horas", "Ventana de tiempo en el texto"],
+               ["/analizar AAPL 1h", "AAPL · 1 hora", "Ventana de tiempo en el comando"],
            ], [5.6 * cm, 3.6 * cm, 7.8 * cm]),
+           Spacer(1, 8),
+           KeepTogether([P("Ventanas de tiempo", "h2"),
+                         table([
+                             ["Ventana", "Cada vela representa", "Historia usada", "Útil para"],
+                             ["1 hora", "1 hora de operación", "60 días", "Movimientos de corto plazo"],
+                             ["4 horas", "4 horas (se arma con velas de 1 h)", "200 días", "Swing de días a semanas"],
+                             ["1 día (por defecto)", "1 sesión completa", "1 año", "Tendencia de mediano plazo"],
+                         ], [3.4 * cm, 5.2 * cm, 3 * cm, 5.4 * cm]),
+                         P("Se elige escribiéndola (" + mono("4h") + ", " + mono("1 hora") + ", " + mono("diario") +
+                           ") o con los botones debajo de cada análisis.", "small")]),
            Spacer(1, 8),
            KeepTogether([P("Comandos", "h2"),
                          table([
                              ["Comando", "Qué hace"],
-                             ["/analizar TICKER", "Análisis completo del activo. Ej.: /analizar KO"],
+                             ["/mercados", "Explorar por mercado (BMV, SIC, ETFs) y sector"],
+                             ["/analizar TICKER [ventana]", "Análisis del activo. Ej.: /analizar KO 4h"],
                              ["/ayuda", "Lista de comandos y ejemplos"],
                              ["/start", "Mensaje de bienvenida con botones de ejemplo"],
                          ], [5.6 * cm, 11.4 * cm])]),
@@ -412,9 +445,10 @@ def part_usage(bot_username):
            ])]
 
     chart_png, sample_ticker, txt = sample_output()
-    intro = [P("8. Entendiendo la respuesta", "h1"),
-             P("Llega <b>un solo mensaje</b>: el gráfico con el análisis como texto debajo y un botón "
-               "<b>Actualizar</b> para volver a consultar ese activo.")]
+    intro = [P("9. Entendiendo la respuesta", "h1"),
+             P("Llega <b>un solo mensaje</b>: el gráfico de velas con el análisis como texto debajo y "
+               "botones para cambiar la ventana (1 hora · 4 horas · 1 día), <b>Actualizar</b> y volver a "
+               "<b>Mercados</b>. La ventana activa aparece marcada con un punto.")]
     if not chart_png:
         st += intro
     else:
@@ -432,20 +466,21 @@ def part_usage(bot_username):
 
     st += [P("El texto", "h2"),
            bullets([
-               "<b>Precio:</b> último precio disponible y su moneda.",
+               "<b>Encabezado:</b> ticker, nombre, último precio con su moneda y ventana de tiempo.",
                "<b>Señal:</b> COMPRA, VENTA o MANTENER, con su <b>fuerza</b> (ver tabla abajo).",
                "<b>Justificación:</b> por qué se llegó a esa señal.",
                "<b>Parabolic SAR:</b> la <b>tendencia</b>. Puntos debajo del precio = alcista; "
                "encima = bajista.",
                "<b>Estocástico:</b> el <b>impulso</b>. Arriba de 80 = sobrecompra (posiblemente caro); "
                "debajo de 20 = sobreventa (posiblemente barato).",
-               "<b>Datos al:</b> fecha de la última vela usada.",
+               "<b>Última vela:</b> fecha (y hora, en intradía) de la última vela usada.",
            ]),
            P("El gráfico", "h2"),
            bullets([
-               "<b>Arriba:</b> precio de cierre (línea azul) y puntos del SAR — "
-               "<font color='#16a34a'><b>verdes</b></font> en tendencia alcista, "
-               "<font color='#dc2626'><b>rojos</b></font> en bajista. La etiqueta azul marca el último precio.",
+               "<b>Arriba:</b> velas japonesas — <font color='#16a34a'><b>verde</b></font> si cerró arriba de "
+               "su apertura, <font color='#dc2626'><b>roja</b></font> si cerró abajo; el cuerpo va de apertura "
+               "a cierre y la mecha marca máximo y mínimo. Los puntos son el SAR (verdes en tendencia alcista, "
+               "rojos en bajista). La etiqueta azul marca el último precio y arriba a la derecha se indica la ventana.",
                "<b>Abajo:</b> líneas %K (azul) y %D (naranja). La franja roja es sobrecompra (&gt;80) y "
                "la verde, sobreventa (&lt;20).",
            ]),
@@ -461,13 +496,15 @@ def part_usage(bot_username):
                    ["<b>Mantener</b>", "No hay cruces nuevos o los indicadores se contradicen."],
                ], [3.4 * cm, 13.6 * cm])])]
 
-    st += [P("9. Preguntas frecuentes", "h1"),
+    st += [P("10. Preguntas frecuentes", "h1"),
            P("<b>«No identifiqué ningún activo».</b> Escribe el ticker en MAYÚSCULAS, con $ "
              "(" + mono("$AAPL") + ") o usa " + mono("/analizar AAPL") + "."),
            P("<b>«No encontré datos para…».</b> Revisa el símbolo en finance.yahoo.com. Las acciones "
              "mexicanas llevan " + mono(".MX") + "."),
-           P("<b>¿Cada cuándo se actualizan los datos?</b> Se usan velas diarias; el precio se refresca "
-             "como máximo cada 5 minutos por activo."),
+           P("<b>¿Cada cuándo se actualizan los datos?</b> Depende de la ventana (1 h, 4 h o 1 día); "
+             "los datos se refrescan como máximo cada 5 minutos por activo y ventana."),
+           P("<b>¿Por qué la señal cambia entre ventanas?</b> Cada ventana mide un horizonte distinto: "
+             "puede haber tendencia alcista en diario y una corrección en 1 hora. Compararlas da contexto."),
            P("<b>El bot no contesta.</b> El programa " + mono("python main.py") + " tiene que estar "
              "corriendo en alguna computadora (ver sección 5).")]
     return st
@@ -477,36 +514,39 @@ def part_usage(bot_username):
 # Parte III — Funcionamiento interno
 # ----------------------------------------------------------------------------- #
 def part_internals():
-    st = [P("10. Arquitectura", "h1"),
+    st = [P("11. Arquitectura", "h1"),
           P(mono("bot_logic.py") + " es el único módulo que conoce Telegram; los demás son funciones "
             "que pueden probarse por separado."),
           architecture_diagram(), Spacer(1, 4),
           P("Figura 3. Módulos del proyecto y sus dependencias.", "caption")]
 
-    st += [P("11. Componentes", "h1"),
+    st += [P("12. Componentes", "h1"),
            table([
                ["Archivo", "Responsabilidad", "Funciones clave"],
                ["main.py", "Punto de entrada.", "run_bot()"],
                ["config.py", "Lee el token y parámetros desde variables de entorno o " + mono(".env") +
-                ". No contiene secretos.", "TELEGRAM_BOT_TOKEN, HISTORY_PERIOD, CHART_DAYS"],
+                ". No contiene secretos.", "TELEGRAM_BOT_TOKEN, CHART_BARS"],
                ["bot_logic.py", "Handlers de Telegram, formato del mensaje (HTML), envío de la "
                 "respuesta, botones y manejo global de errores.",
                 "start_command, ayuda_command, analizar_command, handle_message, button_callback, "
-                "perform_analysis, format_analysis"],
+                "mercados_command, perform_analysis, format_analysis"],
                ["ticker_parser.py", "Detecta el ticker en texto libre: <i>$TICKER</i>, nombres de "
                 "empresas (Tesla, Bimbo…), palabras en MAYÚSCULAS o un mensaje de una sola palabra.",
                 "extract_ticker, normalize_ticker"],
-               ["data_provider.py", "Descarga histórico OHLCV y precio actual con <b>un solo</b> objeto "
-                "yfinance. Caché en memoria de 5 minutos.", "get_market_data → MarketData"],
+               ["catalog.py", "Catálogo para el menú: mercado (BMV, SIC, ETFs) → sector → activos.",
+                "MARKETS, sectors, company_name"],
+               ["data_provider.py", "Descarga velas OHLCV y precio actual con <b>un solo</b> objeto "
+                "yfinance según la ventana (1h, 4h, 1d). Las de 4 h se arman agrupando velas de 1 h. "
+                "Caché de 5 minutos.", "get_market_data, resample_hours, TIMEFRAMES"],
                ["technical_analysis.py", "Calcula PSAR y Estocástico con pandas/numpy e interpreta "
                 "las señales.", "compute_indicators, analyze → Analysis"],
-               ["charts.py", "Gráfico de precio + SAR y Estocástico. API orientada a objetos, segura "
-                "en hilos.", "build_chart → bytes PNG"],
+               ["charts.py", "Gráfico de velas + SAR y Estocástico, sin huecos de noches ni fines de "
+                "semana. API orientada a objetos, segura en hilos.", "build_chart → bytes PNG"],
                ["query_logger.py", "Agrega cada consulta a <i>consultas_bot.csv</i> con un candado "
                 "para escrituras concurrentes.", "log_query"],
            ], [4.0 * cm, 7.6 * cm, 5.4 * cm])]
 
-    st += [P("12. Flujo de una consulta", "h1"),
+    st += [P("13. Flujo de una consulta", "h1"),
            P("Ejemplo: el usuario escribe <i>«¿Qué opinas de Tesla?»</i>."),
            flow_diagram(), Spacer(1, 4),
            P("Figura 4. Flujo de ejecución. El paso 4 corre en un hilo para no bloquear al bot.", "caption"),
@@ -514,7 +554,8 @@ def part_internals():
            numbered([
                "<b>Recepción.</b> " + mono("run_polling()") + " recibe el mensaje. Si es texto libre lo "
                "atiende " + mono("handle_message") + "; si es comando, " + mono("analizar_command") +
-               " (hasta 3 tickers); si es un botón, " + mono("button_callback") + ".",
+               " (hasta 3 tickers y ventana opcional); " + mono("/mercados") + " abre el menú; si es un botón, "
+               + mono("button_callback") + " navega el menú o lanza el análisis.",
                "<b>Ticker.</b> " + mono("extract_ticker") + " devuelve <i>TSLA</i> porque «tesla» está "
                "en la tabla de alias. Si no encuentra nada, el bot explica cómo escribirlo.",
                "<b>Indicador de actividad.</b> El chat muestra «enviando foto…» mientras se trabaja.",
@@ -526,8 +567,8 @@ def part_internals():
            ])]
 
     st += [KeepTogether([
-           P("13. Indicadores técnicos", "h1"),
-           P("13.1 Parabolic SAR (0.02 / 0.2)", "h2"),
+           P("14. Indicadores técnicos", "h1"),
+           P("14.1 Parabolic SAR (0.02 / 0.2)", "h2"),
            P("Sigue la tendencia con un punto que se acerca al precio cada día. Con EP = precio extremo "
              "de la tendencia actual y AF = factor de aceleración:"),
            code("SAR(t) = SAR(t-1) + AF * (EP - SAR(t-1))\n"
@@ -535,7 +576,7 @@ def part_internals():
                 "Si el precio cruza el SAR, la tendencia se invierte: SAR = EP anterior")]),
            P("Además del valor, se guarda la <b>tendencia</b> (+1 alcista, −1 bajista). Un cambio de "
              "tendencia entre ayer y hoy es la señal de Compra o Venta."),
-           P("13.2 Oscilador Estocástico lento (14, 3, 3)", "h2"),
+           P("14.2 Oscilador Estocástico lento (14, 3, 3)", "h2"),
            code("%K bruto = 100 * (Cierre - Mínimo14) / (Máximo14 - Mínimo14)\n"
                 "%K = media móvil 3 de %K bruto\n"
                 "%D = media móvil 3 de %K"),
@@ -543,7 +584,7 @@ def part_internals():
              "Venta: %K cruza por debajo de %D en sobrecompra (&gt;80).")]
 
     st += [KeepTogether([
-        P("14. Señal combinada", "h1"),
+        P("15. Señal combinada", "h1"),
         table([
             ["Parabolic SAR", "Estocástico", "Señal final", "Fuerza"],
             ["Compra", "Compra", "<font color='#16a34a'><b>Compra</b></font>", "Fuerte"],
@@ -555,7 +596,7 @@ def part_internals():
             ["Mantener", "Mantener", "<font color='#d97706'><b>Mantener</b></font>", "—"],
         ], [4.6 * cm, 3.6 * cm, 4.4 * cm, 4.4 * cm])])]
 
-    st += [P("15. Decisiones de diseño y rendimiento", "h1"),
+    st += [P("16. Decisiones de diseño y rendimiento", "h1"),
            bullets([
                "<b>No bloquear al bot:</b> yfinance y matplotlib son síncronos, por eso corren en hilos "
                "y varias consultas se atienden en paralelo (" + mono("concurrent_updates(True)") + ").",
@@ -564,20 +605,28 @@ def part_internals():
                "<b>Caché de 5 minutos</b> por ticker: el botón <i>Actualizar</i> o consultas repetidas "
                "responden al instante.",
                "<b>Indicadores calculados una vez</b> y reutilizados para la señal y el gráfico.",
+               "<b>Velas de 4 horas:</b> Yahoo no las ofrece; se agrupan velas de 1 h por sesión en bloques "
+               "de 4, sin cruzar cierres de mercado (en cripto, 24/7, salen 6 velas por día).",
+               "<b>Menú con edición en sitio:</b> navegar mercados y sectores edita el mismo mensaje en "
+               "lugar de llenar el chat; los datos de cada botón (" + mono("m:MX") + ", " + mono("s:MX:0") +
+               ", " + mono("a:TICKER:4h") + ") caben en el límite de 64 bytes de Telegram.",
                "<b>Sin pandas_ta:</b> las fórmulas están en pandas puro (~40 líneas), sin depender de "
                "una librería sin mantenimiento.",
                "<b>HTML en lugar de Markdown</b> para los mensajes: el texto se escapa y no se rompe con "
                "caracteres especiales.",
            ]),
-           P("Variables opcionales en " + mono(".env") + ": " + mono("BOB_HISTORY_PERIOD") +
-             " (por defecto 1y) y " + mono("BOB_CHART_DAYS") + " (por defecto 120).")]
+           P("Variable opcional en " + mono(".env") + ": " + mono("BOB_CHART_BARS") +
+             " (velas en el gráfico, por defecto 120). La historia de cada ventana se ajusta en "
+             + mono("TIMEFRAMES") + " de " + mono("data_provider.py") + ".")]
 
-    st += [P("16. Cómo extender el bot", "h1"),
+    st += [P("17. Cómo extender el bot", "h1"),
            bullets([
                "<b>Nuevo indicador:</b> agregar su cálculo en " + mono("compute_indicators") + ", una "
                "función " + mono("analyze_xxx") + " que devuelva " + mono("IndicatorResult") +
                " y sumarlo en " + mono("analyze()") + ".",
                "<b>Nuevo alias de empresa:</b> añadir la entrada en " + mono("COMPANY_ALIASES") + ".",
+               "<b>Nuevo activo o sector en el menú:</b> agregar " + mono("(ticker, nombre)") + " en "
+               + mono("catalog.py") + "; el manual lo incluye al regenerarlo.",
                "<b>Nuevo comando:</b> crear el handler en " + mono("bot_logic.py") + ", registrarlo en "
                + mono("run_bot()") + " y en " + mono("_post_init") + " para que aparezca en el menú.",
                "<b>Regenerar este manual:</b> " + mono("python docs/generar_pdfs.py") + ".",
@@ -604,9 +653,9 @@ def manual(out, bot_username):
                ["Parte", "Secciones", "Para quién"],
                ["I. Puesta en marcha", "1–5 · Requisitos, @BotFather, instalación, token, ejecución",
                 "Quien instala el bot"],
-               ["II. Uso del bot", "6–9 · Primeros pasos, consultas, cómo leer la respuesta, FAQ",
+               ["II. Uso del bot", "6–10 · Primeros pasos, mercados y sectores, consultas y ventanas, respuesta, FAQ",
                 "Usuarios en Telegram"],
-               ["III. Funcionamiento interno", "10–16 · Arquitectura, flujo, indicadores, señal, "
+               ["III. Funcionamiento interno", "11–17 · Arquitectura, flujo, indicadores, señal, "
                 "diseño, extensiones", "Desarrolladores"],
            ], [4.4 * cm, 8.6 * cm, 4 * cm]),
            Spacer(1, 10),
